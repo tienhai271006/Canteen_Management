@@ -3,6 +3,7 @@ package vn.edu.phenikaa.canteen.common.security;
 import java.util.Arrays;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,7 +28,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtService jwtService,
                                            UserAccountRepository users, SecurityErrorHandlers errorHandlers,
-                                           CorsConfigurationSource corsSource) throws Exception {
+                                           @Qualifier("corsConfigurationSource") CorsConfigurationSource corsSource) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
                 .cors(c -> c.configurationSource(corsSource))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
