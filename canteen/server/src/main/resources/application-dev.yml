@@ -1,0 +1,15 @@
+spring:
+  jpa:
+    show-sql: false
+
+logging:
+  level:
+    root: INFO
+    vn.edu.phenikaa.canteen: DEBUG
+    org.flywaydb: INFO
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true

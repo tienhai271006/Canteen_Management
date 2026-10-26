@@ -1,0 +1,79 @@
+spring:
+  application:
+    name: canteen
+  profiles:
+    default: dev
+
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/canteen?useUnicode=true&characterEncoding=utf8&connectionTimeZone=Asia/Ho_Chi_Minh}
+    username: ${DB_USER:canteen}
+    password: ${DB_PASSWORD:canteen}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate          # schema do Flyway quản lý, Hibernate chỉ kiểm tra
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Ho_Chi_Minh
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  jackson:
+    time-zone: Asia/Ho_Chi_Minh
+    default-property-inclusion: non_null
+
+  servlet:
+    multipart:
+      max-file-size: 3MB
+      max-request-size: 4MB
+
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USER:}
+    password: ${MAIL_PASS:}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_STARTTLS:false}
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+
+app:
+  timezone: Asia/Ho_Chi_Minh
+  mail:
+    from: ${MAIL_FROM:no-reply@canteen.local}
+  jwt:
+    # Tối thiểu 32 ký tự. KHÔNG dùng giá trị mặc định ở môi trường thật.
+    secret: ${JWT_SECRET:dev-only-secret-change-me-please-0123456789abcdef}
+    access-ttl: PT15M
+    refresh-ttl: P7D
+  auth:
+    school-email-domains: ${SCHOOL_EMAIL_DOMAINS:phenikaa-uni.edu.vn}
+    otp-ttl: PT10M
+    otp-max-attempts: 5
+    otp-resend-cooldown: PT1M
+    otp-max-sends-per-hour: 5
+    otp-pepper: ${OTP_PEPPER:dev-only-otp-pepper-change-me}
+  order:
+    pending-ttl: PT5M            # hạn quầy xác nhận đơn Pending (BR13)
+    max-quantity-per-item: 20
+  storage:
+    dir: ${STORAGE_DIR:./uploads}
+    max-file-size: 2MB
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:3000}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
