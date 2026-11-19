@@ -67,6 +67,8 @@ public enum ErrorCode {
     CART_MULTI_MENU(HttpStatus.CONFLICT, "Giỏ hàng chỉ chứa món của cùng một thực đơn (cùng ngày và buổi). Hãy xóa giỏ hoặc đặt riêng."),
     CART_EMPTY(HttpStatus.CONFLICT, "Giỏ hàng đang trống."),
     QUOTA_EXCEEDED(HttpStatus.CONFLICT, "Không đủ suất cho món này."),
+    SLOT_FULL(HttpStatus.CONFLICT, "Khung giờ nhận này đã đầy. Vui lòng chọn khung giờ khác."),
+    SLOT_CAPACITY_BELOW_COMMITTED(HttpStatus.CONFLICT, "Không thể giảm hạn mức của khung thấp hơn số suất đã nhận."),
     DUPLICATE_ORDER_REQUEST(HttpStatus.CONFLICT, "Yêu cầu đặt đơn này đã được xử lý."),
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy đơn hàng."),
 
@@ -75,13 +77,38 @@ public enum ErrorCode {
     ORDER_EXPIRED(HttpStatus.CONFLICT, "Đơn đã hết hạn xác nhận."),
     CANCEL_NOT_ALLOWED(HttpStatus.CONFLICT, "Đơn ở trạng thái hiện tại không được hủy theo cách này."),
     CANCEL_REQUEST_PENDING(HttpStatus.CONFLICT, "Đơn đang có yêu cầu hủy chờ xử lý."),
+    REQUEST_ALREADY_HANDLED(HttpStatus.CONFLICT, "Yêu cầu đã được xử lý hoặc đã được rút lại."),
+    LATE_ARRIVAL_NOT_ALLOWED(HttpStatus.CONFLICT, "Đơn ở trạng thái hiện tại không thể xin hỗ trợ đến muộn."),
+    LATE_ARRIVAL_PENDING(HttpStatus.CONFLICT, "Đơn đang có yêu cầu hỗ trợ đến muộn chờ xử lý."),
+    ORDER_CODE_MISMATCH(HttpStatus.BAD_REQUEST, "Mã đơn không khớp với đơn đang xử lý."),                      // BR20
+    PAYMENT_AMOUNT_MISMATCH(HttpStatus.CONFLICT, "Số tiền thu không khớp với số tiền phải trả sau giảm giá."),  // BR20
+    HANDOVER_NOT_CONFIRMED(HttpStatus.CONFLICT, "Chưa xác nhận đã bàn giao món cho khách."),                    // BR20
 
     // ---- UC8 Ưu đãi (BR05, BR06, BR07) ----
     PROMOTION_NOT_ELIGIBLE(HttpStatus.CONFLICT, "Tài khoản không đủ điều kiện nhận ưu đãi."),
+    CAMPAIGN_OVERLAP(HttpStatus.CONFLICT, "Đã có chiến dịch ưu đãi đang hiệu lực trong khoảng thời gian này."),
 
     // ---- UC10 Vi phạm và hạn chế (BR24, BR31) ----
     ACCOUNT_RESTRICTED(HttpStatus.FORBIDDEN, "Tài khoản đang bị hạn chế tạo đơn đặt trước."),
-    INCIDENT_ALREADY_EXISTS(HttpStatus.CONFLICT, "Đơn này đã có ghi nhận vi phạm.");
+    INCIDENT_ALREADY_EXISTS(HttpStatus.CONFLICT, "Đơn này đã có ghi nhận vi phạm."),
+    INCIDENT_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy sự việc."),
+    INCIDENT_STATE_INVALID(HttpStatus.CONFLICT, "Trạng thái hiện tại của sự việc không cho phép thao tác này."),
+    INCIDENT_DISPUTED(HttpStatus.CONFLICT, "Sự việc đang có phản hồi chờ xử lý, hãy giải quyết phản hồi trước (BR35)."),
+    FEEDBACK_ALREADY_OPEN(HttpStatus.CONFLICT, "Sự việc này đã có một phản hồi đang chờ xử lý."),
+    NO_SHOW_NOT_OVERDUE(HttpStatus.CONFLICT, "Đơn chưa quá hạn nhận hiện hành nên chưa thể ghi nhận không nhận món."),   // BR23
+    NO_SHOW_NOT_VERIFIED(HttpStatus.CONFLICT, "Cần xác nhận đã kiểm tra thực tế tại quầy trước khi ghi nhận không nhận món."), // BR23
+    RESTRICTION_NOT_JUSTIFIED(HttpStatus.CONFLICT, "Khách chưa đủ số vi phạm đã xác nhận trong 30 ngày để quyết định hạn chế."),
+    RESTRICTION_ALREADY_ACTIVE(HttpStatus.CONFLICT, "Khách đang có một hạn chế đặt trước còn hiệu lực."),
+    RESTRICTION_STATE_INVALID(HttpStatus.CONFLICT, "Hạn chế này không còn hiệu lực để thu hồi."),
+    WASTE_NOT_ALLOWED(HttpStatus.CONFLICT, "Chỉ xử lý món cho đơn không nhận (Not collected)."),
+    WASTE_EXCEEDS_REMAINING(HttpStatus.CONFLICT, "Số suất xử lý vượt phần món chưa được xử lý của đơn."),
+
+    // ---- UC1.3/UC1.4 OCR thẻ sinh viên (BR09, BR10) ----
+    OCR_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Chưa quét được thẻ lúc này. Bạn có thể thử lại hoặc nhập thông tin bằng tay."),
+    OCR_BUSY(HttpStatus.SERVICE_UNAVAILABLE, "Hệ thống đang bận xử lý ảnh, vui lòng thử lại sau ít phút hoặc nhập tay."),
+    OCR_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "Bạn đã quét quá nhiều lần, vui lòng thử lại sau hoặc nhập tay."),
+    OCR_NO_TEXT(HttpStatus.UNPROCESSABLE_ENTITY, "Không đọc được họ tên hoặc mã sinh viên từ ảnh. Hãy chụp lại rõ hơn hoặc nhập tay."),
+    OCR_DRAFT_NOT_FOUND(HttpStatus.NOT_FOUND, "Kết quả quét không còn (đã hết hạn, đã xác nhận hoặc đã hủy). Hãy quét lại hoặc nhập tay.");
 
     private final HttpStatus status;
     private final String defaultMessage;

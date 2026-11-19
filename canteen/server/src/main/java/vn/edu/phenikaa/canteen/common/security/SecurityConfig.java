@@ -43,9 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/manager/**").hasRole("VENDOR_MANAGER")
                         .requestMatchers("/api/counter/**").hasAnyRole("VENDOR_STAFF", "VENDOR_MANAGER")
-                        .requestMatchers("/api/**").authenticated()
-                        // Giao diện web (React) do server phục vụ cùng nguồn: trang, JS, CSS không cần đăng nhập.
-                        .anyRequest().permitAll())
+                        .anyRequest().authenticated())
                 .addFilterBefore(new JwtAuthenticationFilter(jwtService, users),
                         UsernamePasswordAuthenticationFilter.class);
         return http.build();

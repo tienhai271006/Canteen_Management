@@ -29,7 +29,8 @@ import vn.edu.phenikaa.canteen.dto.MenuItemResponse;
 import vn.edu.phenikaa.canteen.dto.MenuSummaryResponse;
 import vn.edu.phenikaa.canteen.dto.QuotaAdjustmentResponse;
 import vn.edu.phenikaa.canteen.dto.SlotRequest;
-import vn.edu.phenikaa.canteen.dto.SlotResponse;
+import vn.edu.phenikaa.canteen.dto.SlotCapacityRequest;
+import vn.edu.phenikaa.canteen.dto.SlotCapacityResponse;
 import vn.edu.phenikaa.canteen.dto.UpdateCutoffRequest;
 import vn.edu.phenikaa.canteen.service.MenuService;
 import vn.edu.phenikaa.canteen.service.QuotaAdminService;
@@ -114,19 +115,26 @@ public class ManagerMenuController {
     // ---- Khung giờ nhận ----
 
     @GetMapping("/{menuId}/slots")
-    public List<SlotResponse> slots(@PathVariable Long menuId) {
+    public List<SlotCapacityResponse> slots(@PathVariable Long menuId) {
         return slotService.list(menuId);
     }
 
     @PostMapping("/{menuId}/slots")
-    public ResponseEntity<SlotResponse> addSlot(@PathVariable Long menuId, @Valid @RequestBody SlotRequest req) {
+    public ResponseEntity<SlotCapacityResponse> addSlot(@PathVariable Long menuId, @Valid @RequestBody SlotRequest req) {
         return ResponseEntity.status(HttpStatus.CREATED).body(slotService.add(menuId, req));
     }
 
     @PutMapping("/{menuId}/slots/{slotId}")
-    public SlotResponse updateSlot(@PathVariable Long menuId, @PathVariable Long slotId,
+    public SlotCapacityResponse updateSlot(@PathVariable Long menuId, @PathVariable Long slotId,
                                    @Valid @RequestBody SlotRequest req) {
         return slotService.update(menuId, slotId, req);
+    }
+
+    /** UC3.5: đặt hạn mức cho khung; capacity null là bỏ giới hạn. */
+    @PutMapping("/{menuId}/slots/{slotId}/capacity")
+    public SlotCapacityResponse setSlotCapacity(@PathVariable Long menuId, @PathVariable Long slotId,
+                                                @Valid @RequestBody SlotCapacityRequest req) {
+        return slotService.setCapacity(menuId, slotId, req.capacity());
     }
 
     @DeleteMapping("/{menuId}/slots/{slotId}")

@@ -37,7 +37,7 @@ import vn.edu.phenikaa.canteen.common.exception.ErrorCode;
 import vn.edu.phenikaa.canteen.common.security.VendorAccessChecker;
 
 /** Cần Docker (Testcontainers MySQL). Không có Docker thì test tự bỏ qua. */
-@SpringBootTest
+@SpringBootTest(properties = "app.jobs.enabled=false")   // job nền chạy tay trong test, không chen vào kịch bản
 @AutoConfigureMockMvc
 @ActiveProfiles("dev")
 @Testcontainers(disabledWithoutDocker = true)

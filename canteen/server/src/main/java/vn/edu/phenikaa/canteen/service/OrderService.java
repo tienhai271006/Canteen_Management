@@ -27,6 +27,8 @@ import vn.edu.phenikaa.canteen.model.MenuItem;
 import vn.edu.phenikaa.canteen.model.Order;
 import vn.edu.phenikaa.canteen.model.OrderItem;
 import vn.edu.phenikaa.canteen.model.OrderStatus;
+import vn.edu.phenikaa.canteen.model.ActorType;
+import vn.edu.phenikaa.canteen.model.NotificationType;
 import vn.edu.phenikaa.canteen.model.PaymentStatus;
 import vn.edu.phenikaa.canteen.model.PickupSlot;
 import vn.edu.phenikaa.canteen.repository.CartRepository;
@@ -60,9 +62,11 @@ public class OrderService {
     private final OrderEligibilityChecker eligibility;
     private final PricingService pricing;
     private final QuotaService quotaService;
+    private final SlotCapacityService slotCapacity;
     private final OrderStateMachine stateMachine;
     private final OrderStatusHistoryService history;
     private final OrderCodeGenerator codes;
+    private final NotificationService notifications;
     private final ObjectProvider<FirstOrderDiscountProvider> discountProvider;
     private final OrderProperties props;
     private final Clock clock;
@@ -112,10 +116,13 @@ public class OrderService {
             demand.merge(mi.getId(), line.getQuantity(), Integer::sum);
         }
 
-        Quote quote = pricing.quote(userId, inputs);
+        Quote quote = pricing.quote(userId, inputs, req.wantsVoucher());
 
         // Giữ suất (BR12): lỗi ở đây hoặc ở bước sau đều hủy cả transaction.
         quotaService.reserveAll(demand);
+        // Khung nhận cũng có hạn mức: còn món nhưng khung đầy thì không nhận thêm. Luôn giữ SAU suất món và trả cũng
+        // theo thứ tự đó, nên hai đơn không khóa dòng theo thứ tự ngược nhau.
+        slotCapacity.reserve(slot.getId(), demand.values().stream().mapToInt(Integer::intValue).sum());
 
         LocalDateTime now = LocalDateTime.now(clock);
         Order order = new Order();
@@ -183,10 +190,19 @@ public class OrderService {
     /**
      * Cửa duy nhất để đổi trạng thái đơn: kiểm tra bảng chuyển, cập nhật mốc thời gian, ghi lịch sử (NFR03)
      * và trả suất khi hủy hoặc hết hạn (BR14). Người gọi phải tự kiểm tra QUYỀN (vai trò, quầy) trước.
-     * Trả quyền ưu đãi khi hủy hợp lệ do Pha 8 nối vào.
+     * Quyền ưu đãi đi theo trạng thái đơn qua {@link #settlePromotion} (Pha 8).
      */
     @Transactional
     public void transition(Order order, OrderStatus to, Actor actor, String reason) {
+        transition(order, to, actor, reason, true);
+    }
+
+    /**
+     * {@code notifyCustomer = false} khi người gọi tự gửi thông báo riêng (Ready cần kèm hạn nhận vừa tính; duyệt hủy
+     * gửi thông báo quyết định) để khách không nhận hai thông báo cho một việc.
+     */
+    @Transactional
+    public void transition(Order order, OrderStatus to, Actor actor, String reason, boolean notifyCustomer) {
         OrderStatus from = order.getStatus();
         stateMachine.require(from, to);
 
@@ -205,8 +221,69 @@ public class OrderService {
         }
         if (stateMachine.releasesQuota(to)) {
             quotaService.releaseForOrder(order);
+            slotCapacity.releaseForOrder(order);
         }
+        settlePromotion(order, to);
         history.record(order, from, to, actor, reason);
+        if (notifyCustomer) {
+            notifyCustomer(order, to, actor, reason);
+        }
+    }
+
+    /**
+     * Báo khách khi quầy hoặc hệ thống đổi trạng thái đơn (không báo việc chính khách vừa làm). Khóa sự kiện theo
+     * (đơn, trạng thái mới) nên gọi lặp không tạo thông báo hai lần. Hủy và hết hạn có thêm email (BR28, NFR05).
+     */
+    private void notifyCustomer(Order order, OrderStatus to, Actor actor, String reason) {
+        if (actor.type() == ActorType.CUSTOMER) {
+            return;
+        }
+        String code = order.getOrderCode();
+        String key = "ORDER:" + order.getId() + ":" + to;
+        Long userId = order.getCustomerId();
+        switch (to) {
+            case CONFIRMED -> notifications.notifyUser(userId, NotificationType.ORDER_CONFIRMED,
+                    "Quầy đã xác nhận đơn " + code,
+                    "Đơn của bạn tại " + order.getVendor().getName() + " đã được xác nhận. Nhận món tại "
+                            + order.getVendor().getPickupLocation() + ".",
+                    key, "ORDER", order.getId(), false);
+            case CANCELLED -> notifications.notifyUser(userId, NotificationType.ORDER_CANCELLED,
+                    "Đơn " + code + " đã bị hủy",
+                    (reason == null ? "" : reason + ". ") + "Suất và ưu đãi (nếu có) đã được trả lại.",
+                    key, "ORDER", order.getId(), true);
+            case EXPIRED -> notifications.notifyUser(userId, NotificationType.ORDER_EXPIRED,
+                    "Đơn " + code + " đã hết hạn xác nhận",
+                    "Quầy chưa xác nhận đơn trong thời hạn nên đơn đã hết hạn. Suất và ưu đãi (nếu có) đã được trả lại; "
+                            + "bạn có thể đặt lại.",
+                    key, "ORDER", order.getId(), true);
+            default -> {
+            }
+        }
+    }
+
+    /**
+     * Đưa quyền ưu đãi đang giữ cho đơn đi theo trạng thái mới (BR07): Completed và Paid thì Đã dùng; Cancelled hoặc
+     * Expired thì trả quyền nếu còn hạn; NotCollected thì Chờ xem xét. Đơn không giữ quyền thì bỏ qua.
+     */
+    private void settlePromotion(Order order, OrderStatus to) {
+        if (order.getEntitlementId() == null) {
+            return;
+        }
+        FirstOrderDiscountProvider provider = discountProvider.getIfAvailable();
+        if (provider == null) {
+            return;
+        }
+        switch (to) {
+            case COMPLETED -> {
+                if (order.getPaymentStatus() == PaymentStatus.PAID) {
+                    provider.consume(order.getId());
+                }
+            }
+            case CANCELLED, EXPIRED -> provider.release(order.getId());
+            case NOT_COLLECTED -> provider.holdForReview(order.getId());
+            default -> {
+            }
+        }
     }
 
     private OrderResponse detail(Long orderId) {

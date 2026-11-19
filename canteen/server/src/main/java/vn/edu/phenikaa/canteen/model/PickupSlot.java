@@ -28,6 +28,23 @@ public class PickupSlot extends BaseEntity {
     @Column(name = "end_time", nullable = false)
     private LocalTime endTime;
 
+    /** Tổng số suất khung nhận được; null là chưa giới hạn. Chỉ đổi qua {@code PickupSlotRepository} (câu UPDATE có điều kiện). */
+    @Column(name = "capacity", insertable = false, updatable = false)
+    private Integer capacity;
+
+    /** Số suất đang giữ cho đơn chưa hủy hay hết hạn. Không bao giờ ghi qua entity, tránh ghi đè bộ đếm đang chạy. */
+    @Column(name = "reserved_qty", insertable = false, updatable = false)
+    private int reservedQty;
+
+    /** Còn nhận được bao nhiêu suất; null nếu chưa giới hạn. */
+    public Integer remaining() {
+        return capacity == null ? null : Math.max(0, capacity - reservedQty);
+    }
+
+    public boolean isFull() {
+        return capacity != null && reservedQty >= capacity;
+    }
+
     public boolean overlaps(LocalTime start, LocalTime end) {
         return startTime.isBefore(end) && start.isBefore(endTime);
     }

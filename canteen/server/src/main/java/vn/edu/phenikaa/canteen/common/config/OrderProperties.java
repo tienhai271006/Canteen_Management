@@ -9,5 +9,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 public record OrderProperties(
         /** Hạn quầy phải xác nhận đơn Pending, quá hạn thì chuyển Expired (BR13). */
         @DefaultValue("PT5M") Duration pendingTtl,
-        @DefaultValue("20") int maxQuantityPerItem) {
+        @DefaultValue("20") int maxQuantityPerItem,
+        /** Thời gian chờ cộng vào hạn nhận sau khi món Ready (BR22). */
+        @DefaultValue("PT15M") Duration pickupWait) {
 }

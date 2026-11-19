@@ -41,7 +41,7 @@ import vn.edu.phenikaa.canteen.service.Actor;
 import vn.edu.phenikaa.canteen.service.OrderService;
 
 /** Luồng giỏ hàng và đặt đơn (UC5). Cần Docker (Testcontainers MySQL); không có Docker thì test tự bỏ qua. */
-@SpringBootTest
+@SpringBootTest(properties = "app.jobs.enabled=false")   // job nền chạy tay trong test, không chen vào kịch bản
 @AutoConfigureMockMvc
 @ActiveProfiles("dev")
 @Testcontainers(disabledWithoutDocker = true)

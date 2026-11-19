@@ -38,7 +38,7 @@ import vn.edu.phenikaa.canteen.order.OrderTestFixtures.MenuFixture;
  * NFR02, BR12: không bán vượt suất dù nhiều request cùng lúc. Cần Docker (Testcontainers MySQL).
  * Các request chạy thật song song qua MockMvc, mỗi khách một token và một khóa idempotency riêng.
  */
-@SpringBootTest
+@SpringBootTest(properties = "app.jobs.enabled=false")   // job nền chạy tay trong test, không chen vào kịch bản
 @AutoConfigureMockMvc
 @ActiveProfiles("dev")
 @Testcontainers(disabledWithoutDocker = true)

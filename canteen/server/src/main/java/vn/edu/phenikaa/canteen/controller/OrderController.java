@@ -20,7 +20,7 @@ import vn.edu.phenikaa.canteen.dto.PlaceOrderRequest;
 import vn.edu.phenikaa.canteen.service.OrderService.PlacedOrder;
 import vn.edu.phenikaa.canteen.service.OrderService;
 
-/** Danh sách đơn, hủy đơn nằm ở MyOrderController (Pha 7). Ở đây chỉ có đặt đơn và xem một đơn của mình. */
+/** Danh sách đơn, tiến độ, hủy đơn nằm ở MyOrderController (Pha 7). Ở đây chỉ có đặt đơn và xem một đơn của mình. */
 @Tag(name = "Customer - Orders")
 @RestController
 @RequestMapping("/api/orders")

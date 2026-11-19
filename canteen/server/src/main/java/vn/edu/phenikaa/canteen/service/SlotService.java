@@ -1,5 +1,7 @@
 package vn.edu.phenikaa.canteen.service;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -11,7 +13,7 @@ import vn.edu.phenikaa.canteen.common.exception.BusinessException;
 import vn.edu.phenikaa.canteen.common.exception.ErrorCode;
 import vn.edu.phenikaa.canteen.dto.MenuSummaryResponse;
 import vn.edu.phenikaa.canteen.dto.SlotRequest;
-import vn.edu.phenikaa.canteen.dto.SlotResponse;
+import vn.edu.phenikaa.canteen.dto.SlotCapacityResponse;
 import vn.edu.phenikaa.canteen.model.Menu;
 import vn.edu.phenikaa.canteen.model.PickupSlot;
 import vn.edu.phenikaa.canteen.repository.PickupSlotRepository;
@@ -24,6 +26,8 @@ public class SlotService {
     private final PickupSlotRepository slots;
     private final MenuGuard guard;
     private final MenuUsageChecker usage;
+    private final SlotCapacityService capacity;
+    private final Clock clock;
 
     @Transactional
     public MenuSummaryResponse updateCutoff(Long menuId, LocalTime cutoff) {
@@ -33,13 +37,13 @@ public class SlotService {
     }
 
     @Transactional(readOnly = true)
-    public List<SlotResponse> list(Long menuId) {
+    public List<SlotCapacityResponse> list(Long menuId) {
         guard.managed(menuId);
-        return slots.findByMenuIdOrderByStartTime(menuId).stream().map(SlotResponse::from).toList();
+        return capacity.view(menuId);
     }
 
     @Transactional
-    public SlotResponse add(Long menuId, SlotRequest req) {
+    public SlotCapacityResponse add(Long menuId, SlotRequest req) {
         Menu menu = guard.editable(menuId);
         requireValidRange(req);
         requireNoOverlap(menuId, req, null);
@@ -47,12 +51,13 @@ public class SlotService {
         slot.setMenu(menu);
         slot.setStartTime(req.startTime());
         slot.setEndTime(req.endTime());
-        return SlotResponse.from(slots.save(slot));
+        PickupSlot saved = slots.saveAndFlush(slot);
+        return SlotCapacityResponse.of(saved, 0);
     }
 
     /** Khung đã có đơn thì không đổi giờ được, vì khách đã chọn đúng giờ đó. */
     @Transactional
-    public SlotResponse update(Long menuId, Long slotId, SlotRequest req) {
+    public SlotCapacityResponse update(Long menuId, Long slotId, SlotRequest req) {
         guard.editable(menuId);
         PickupSlot slot = requireSlot(menuId, slotId);
         if (usage.isSlotUsed(slotId)) {
@@ -62,7 +67,26 @@ public class SlotService {
         requireNoOverlap(menuId, req, slotId);
         slot.setStartTime(req.startTime());
         slot.setEndTime(req.endTime());
-        return SlotResponse.from(slot);
+        return capacity.viewOne(slot);
+    }
+
+    /**
+     * Đặt hoặc bỏ hạn mức của khung (UC3.5). Không cần khung chưa có đơn như đổi giờ: quản lý được tăng hạn mức khi đã
+     * mở bán, còn giảm thì không thấp hơn số suất đã nhận ({@code reserved_qty <= capacity} kiểm trong câu UPDATE).
+     */
+    @Transactional
+    public SlotCapacityResponse setCapacity(Long menuId, Long slotId, Integer cap) {
+        guard.managed(menuId);
+        PickupSlot slot = requireSlot(menuId, slotId);
+        LocalDateTime now = LocalDateTime.now(clock);
+        int changed = cap == null ? slots.clearCapacity(slotId, now) : slots.setCapacity(slotId, cap, now);
+        if (changed != 1) {
+            throw new BusinessException(ErrorCode.SLOT_CAPACITY_BELOW_COMMITTED);
+        }
+        // UPDATE native bỏ qua persistence context: nạp lại để số liệu trả về là mới.
+        slots.flush();
+        PickupSlot fresh = slots.findById(slot.getId()).orElseThrow();
+        return capacity.viewOne(fresh);
     }
 
     @Transactional

@@ -33,6 +33,11 @@ public record OrderResponse(
         long totalAmount,
         String note,
         LocalDateTime pendingExpiresAt,
+        LocalDateTime confirmedAt,
+        LocalDateTime readyAt,
+        LocalDateTime pickupDeadline,
+        LocalDateTime completedAt,
+        String closedReason,
         LocalDateTime createdAt) {
 
     public record Item(Long menuItemId, Long dishId, String dishName, long unitPrice, int quantity, long lineTotal) {
@@ -53,6 +58,7 @@ public record OrderResponse(
                 menu.getMenuDate(), menu.getMealSession(), slot.getId(), slot.getStartTime(), slot.getEndTime(),
                 o.getItems().stream().map(Item::from).toList(),
                 o.getSubtotalAmount(), o.getDiscountAmount(), o.getTotalAmount(), o.getNote(),
-                o.getPendingExpiresAt(), o.getCreatedAt());
+                o.getPendingExpiresAt(), o.getConfirmedAt(), o.getReadyAt(), o.getPickupDeadline(),
+                o.getCompletedAt(), o.getClosedReason(), o.getCreatedAt());
     }
 }

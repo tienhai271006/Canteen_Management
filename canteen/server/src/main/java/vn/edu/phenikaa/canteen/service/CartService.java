@@ -48,8 +48,15 @@ public class CartService {
 
     @Transactional(readOnly = true)
     public CartResponse get() {
+        return get(true);
+    }
+
+    /** {@code useVoucher = false}: xem giá khi khách chọn không dùng voucher cho đơn này (UC5.3). */
+    @Transactional(readOnly = true)
+    public CartResponse get(boolean useVoucher) {
         Long userId = CurrentUser.id();
-        return carts.findDetailByUserId(userId).map(c -> toResponse(userId, c)).orElseGet(CartResponse::empty);
+        return carts.findDetailByUserId(userId).map(c -> toResponse(userId, c, useVoucher))
+                .orElseGet(CartResponse::empty);
     }
 
     @Transactional
@@ -149,6 +156,10 @@ public class CartService {
     }
 
     private CartResponse toResponse(Long userId, Cart cart) {
+        return toResponse(userId, cart, true);
+    }
+
+    private CartResponse toResponse(Long userId, Cart cart, boolean useVoucher) {
         if (cart.getItems().isEmpty()) {
             return CartResponse.empty();
         }
@@ -161,7 +172,7 @@ public class CartService {
             Dish d = l.getMenuItem().getDish();
             return new LineInput(l.getMenuItem().getId(), d.getId(), d.getName(), d.getPrice(), l.getQuantity());
         }).toList();
-        Quote quote = pricing.quote(userId, inputs);
+        Quote quote = pricing.quote(userId, inputs, useVoucher);
 
         List<CartResponse.Line> out = new java.util.ArrayList<>();
         for (int i = 0; i < lines.size(); i++) {

@@ -4,16 +4,8 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.LocalDateTime;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.MailException;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import lombok.RequiredArgsConstructor;
 import vn.edu.phenikaa.canteen.common.config.AuthProperties;
@@ -28,24 +20,21 @@ import vn.edu.phenikaa.canteen.repository.UserAccountRepository;
 
 /**
  * UC1.2, BR08, NFR04: OTP 6 số, lưu bản băm HMAC, có hạn, dùng một lần, giới hạn số lần thử sai.
- * TODO Pha 9: đổi {@link #deliverAfterCommit} sang ghi email_outbox thay vì gửi trực tiếp.
+ * Email OTP đi qua hàng đợi email (Pha 9): gửi ngay sau commit, lỗi thì thử lại, nội dung bị xóa sau khi gửi.
  */
 @Service
 @RequiredArgsConstructor
 public class EmailVerificationService {
 
-    private static final Logger log = LoggerFactory.getLogger(EmailVerificationService.class);
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final EmailVerificationRepository verifications;
     private final UserAccountRepository users;
     private final SchoolEmailPolicy emailPolicy;
+    private final PromotionService promotions;
     private final AuthProperties props;
-    private final JavaMailSender mailSender;
+    private final NotificationService notifications;
     private final Clock clock;
-
-    @Value("${app.mail.from:no-reply@canteen.local}")
-    private String mailFrom;
 
     /** Người dùng bấm "gửi lại mã" cho email đang chờ xác minh. */
     @Transactional
@@ -89,7 +78,11 @@ public class EmailVerificationService {
         v.setExpiresAt(now.plus(props.otpTtl()));
         verifications.save(v);
 
-        deliverAfterCommit(email, code);
+        // Gửi qua outbox (NFR05): lỗi email không làm hỏng việc tạo mã, và thử lại dùng cùng một dòng (BR29).
+        notifications.queueEmail(user.getId(), null, email, "Mã xác minh email Canteen",
+                "Mã xác minh của bạn là " + code + ". Mã có hiệu lực " + props.otpTtl().toMinutes()
+                        + " phút và chỉ dùng một lần. Nếu bạn không yêu cầu, hãy bỏ qua email này.",
+                "OTP:" + v.getId());
     }
 
     @Transactional
@@ -138,36 +131,11 @@ public class EmailVerificationService {
         v.setConsumedAt(now);
         user.setEmailVerified(true);
         user.setEmailVerifiedAt(now);
+        // BR05, BR06: xác minh email trường là lúc cấp quyền ưu đãi; trùng tài khoản hoặc email thì bỏ qua.
+        promotions.grantIfEligible(user);
     }
 
     private String hash(Long userId, String email, String code) {
         return Hashing.hmacSha256Hex(props.otpPepper(), userId + ":" + email + ":" + code);
-    }
-
-    /** Gửi sau khi commit; lỗi email chỉ ghi log, tài khoản giữ trạng thái chưa xác minh (UC1.2, NFR05). */
-    private void deliverAfterCommit(String to, String code) {
-        Runnable send = () -> {
-            try {
-                SimpleMailMessage msg = new SimpleMailMessage();
-                msg.setFrom(mailFrom);
-                msg.setTo(to);
-                msg.setSubject("Mã xác minh email Canteen");
-                msg.setText("Mã xác minh của bạn là " + code + ". Mã có hiệu lực " + props.otpTtl().toMinutes()
-                        + " phút và chỉ dùng một lần. Nếu bạn không yêu cầu, hãy bỏ qua email này.");
-                mailSender.send(msg);
-            } catch (MailException e) {
-                log.warn("Không gửi được email xác minh tới {}: {}", to, e.getMessage());
-            }
-        };
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    send.run();
-                }
-            });
-        } else {
-            send.run();
-        }
     }
 }

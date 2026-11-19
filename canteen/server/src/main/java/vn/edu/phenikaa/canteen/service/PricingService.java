@@ -35,6 +35,14 @@ public class PricingService {
     }
 
     public Quote quote(Long customerId, List<LineInput> inputs) {
+        return quote(customerId, inputs, true);
+    }
+
+    /**
+     * {@code useVoucher = false}: khách chọn không dùng voucher cho đơn này (UC5.3 bước 1), quyền được giữ cho đơn sau
+     * nên không tính khoản giảm và không có {@code entitlementId} để giữ.
+     */
+    public Quote quote(Long customerId, List<LineInput> inputs, boolean useVoucher) {
         List<PricedLine> lines = new ArrayList<>(inputs.size());
         long subtotal = 0;
         for (LineInput in : inputs) {
@@ -46,7 +54,7 @@ public class PricingService {
 
         long discount = 0;
         Long entitlementId = null;
-        FirstOrderDiscountProvider provider = discountProvider.getIfAvailable();
+        FirstOrderDiscountProvider provider = useVoucher ? discountProvider.getIfAvailable() : null;
         if (provider != null) {
             Optional<Terms> terms = provider.findUsable(customerId);
             if (terms.isPresent()) {

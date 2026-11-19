@@ -51,6 +51,9 @@ server:
 
 app:
   timezone: Asia/Ho_Chi_Minh
+  promotion:
+    # Phần trăm khoản giảm ưu đãi đơn đầu do nền tảng chịu; quầy chịu phần còn lại.
+    platform-share-percent: 70
   mail:
     from: ${MAIL_FROM:no-reply@canteen.local}
   jwt:
@@ -68,6 +71,36 @@ app:
   order:
     pending-ttl: PT5M            # hạn quầy xác nhận đơn Pending (BR13)
     max-quantity-per-item: 20
+    pickup-wait: PT15M           # chờ thêm sau khung nhận hoặc sau khi báo Ready (BR22)
+  incident:
+    window-days: 30          # BR26: cửa sổ trượt tính vi phạm
+    escalate-at: 3           # BR27: từ lần thứ 3 chuyển quản trị viên
+    restriction-days: 7      # BR31: thời hạn hạn chế mặc định
+    max-restriction-days: 30
+  jobs:
+    enabled: true                # false: tắt mọi lịch chạy nền (dùng khi test)
+    batch-size: 100
+    pending-expiry-interval: PT30S       # Pending quá hạn xác nhận sang Expired (BR13)
+    entitlement-expiry-interval: PT10M
+    restriction-expiry-interval: PT5M
+  notification:
+    max-attempts: 5              # quá số lần thì email FAILED, thông báo trong ứng dụng vẫn còn (NFR05)
+    outbox-batch-size: 20
+    lease: PT2M
+    poll-interval: PT15S         # chu kỳ quét hàng đợi email
+  ocr:
+    enabled: ${OCR_ENABLED:false}        # OCR là tùy chọn (BR09); bật cần cài Tesseract, xem README
+    tessdata-path: ${TESSDATA_PATH:}     # thư mục chứa vie.traineddata và eng.traineddata
+    language: vie+eng
+    draft-ttl: PT10M                     # bản nháp (chỉ chữ, không ảnh) tự xóa sau chừng này (BR10)
+    cleanup-interval: PT1M
+    max-image-size: 3MB
+    max-pixels: 12000000
+    max-scans-per-hour: 10
+    max-concurrent: 2
+    engine-timeout: PT20S
+    max-drafts: 5000
+    student-code-pattern: '\d{8,10}'     # chỉnh theo mã sinh viên thật của trường
   storage:
     dir: ${STORAGE_DIR:./uploads}
     max-file-size: 2MB

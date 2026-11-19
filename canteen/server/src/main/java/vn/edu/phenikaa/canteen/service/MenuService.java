@@ -20,7 +20,7 @@ import vn.edu.phenikaa.canteen.dto.CreateMenuRequest;
 import vn.edu.phenikaa.canteen.dto.MenuDetailResponse;
 import vn.edu.phenikaa.canteen.dto.MenuItemResponse;
 import vn.edu.phenikaa.canteen.dto.MenuSummaryResponse;
-import vn.edu.phenikaa.canteen.dto.SlotResponse;
+import vn.edu.phenikaa.canteen.dto.SlotCapacityResponse;
 import vn.edu.phenikaa.canteen.model.Dish;
 import vn.edu.phenikaa.canteen.model.Menu;
 import vn.edu.phenikaa.canteen.model.MenuItem;
@@ -47,6 +47,7 @@ public class MenuService {
     private final MenuRepository menus;
     private final MenuItemRepository items;
     private final PickupSlotRepository slots;
+    private final SlotCapacityService slotCapacity;
     private final QuotaRepository quotas;
     private final QuotaAdjustmentRepository adjustments;
     private final DishRepository dishes;
@@ -197,8 +198,7 @@ public class MenuService {
         List<MenuItemResponse> itemResponses = menuItems.stream()
                 .map(mi -> MenuItemResponse.from(mi, quotaByItem.get(mi.getId())))
                 .toList();
-        List<SlotResponse> slotResponses = slots.findByMenuIdOrderByStartTime(menu.getId()).stream()
-                .map(SlotResponse::from).toList();
+        List<SlotCapacityResponse> slotResponses = slotCapacity.view(menu.getId());
         return new MenuDetailResponse(MenuSummaryResponse.from(menu), itemResponses, slotResponses);
     }
 }

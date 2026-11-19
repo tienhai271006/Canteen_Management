@@ -5,5 +5,5 @@ import java.util.List;
 public record MenuDetailResponse(
         MenuSummaryResponse menu,
         List<MenuItemResponse> items,
-        List<SlotResponse> slots) {
+        List<SlotCapacityResponse> slots) {
 }

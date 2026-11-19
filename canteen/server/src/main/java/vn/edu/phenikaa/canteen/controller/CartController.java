@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,9 +30,10 @@ public class CartController {
 
     private final CartService cartService;
 
+    /** {@code ?useVoucher=false} để xem giá khi không dùng voucher (UC5.3); mặc định có dùng nếu đủ điều kiện. */
     @GetMapping
-    public CartResponse get() {
-        return cartService.get();
+    public CartResponse get(@RequestParam(defaultValue = "true") boolean useVoucher) {
+        return cartService.get(useVoucher);
     }
 
     @PostMapping("/items")
